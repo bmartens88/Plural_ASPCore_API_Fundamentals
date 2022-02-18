@@ -1,16 +1,15 @@
 using CourseLibrary.API.DbContexts;
 using CourseLibrary.API.Services;
-using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers(setupActions =>
-{
-    setupActions.ReturnHttpNotAcceptable = true;
-}).AddXmlDataContractSerializerFormatters();
+builder.Services.AddControllers(setupActions => { setupActions.ReturnHttpNotAcceptable = true; })
+    .AddXmlDataContractSerializerFormatters();
+
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
 builder.Services.AddScoped<ICourseLibraryRepository, CourseLibraryRepoistory>();
 
@@ -28,6 +27,17 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+else
+{
+    app.UseExceptionHandler(appBuilder =>
+    {
+        appBuilder.Run(async context =>
+        {
+            context.Response.StatusCode = 500;
+            await context.Response.WriteAsync("An unexpected fault happened. Try again later.");
+        });
+    });
 }
 
 app.UseAuthorization();
