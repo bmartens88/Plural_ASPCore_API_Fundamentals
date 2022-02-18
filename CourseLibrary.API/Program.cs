@@ -1,12 +1,16 @@
 using CourseLibrary.API.DbContexts;
 using CourseLibrary.API.Services;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(setupActions =>
+{
+    setupActions.ReturnHttpNotAcceptable = true;
+}).AddXmlDataContractSerializerFormatters();
 
 builder.Services.AddScoped<ICourseLibraryRepository, CourseLibraryRepoistory>();
 
