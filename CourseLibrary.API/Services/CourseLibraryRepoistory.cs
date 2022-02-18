@@ -1,5 +1,6 @@
 ﻿using CourseLibrary.API.DbContexts;
 using CourseLibrary.API.Entities;
+using CourseLibrary.API.ResourceParameters;
 
 namespace CourseLibrary.API.Services;
 
@@ -64,6 +65,35 @@ public class CourseLibraryRepoistory : ICourseLibraryRepository, IDisposable
             throw new ArgumentNullException(nameof(authorId));
 
         return _context.Authors.FirstOrDefault(a => a.Id == authorId);
+    }
+
+    public IEnumerable<Author> GetAuthors(AuthorsResourceParameters authorsResourceParameters)
+    {
+        if (authorsResourceParameters is null)
+        {
+            throw new ArgumentNullException(nameof(authorsResourceParameters));
+        }
+        
+        if (string.IsNullOrWhiteSpace(authorsResourceParameters.MainCategory) && string.IsNullOrWhiteSpace(authorsResourceParameters.SearchQuery))
+            return GetAuthors();
+
+        var collection = _context.Authors as IQueryable<Author>;
+
+        if (!string.IsNullOrWhiteSpace(authorsResourceParameters.MainCategory))
+        {
+            var mainCategory = authorsResourceParameters.MainCategory.Trim();
+            collection = collection.Where(a => a.MainCategory == mainCategory);
+        }
+
+        if (!string.IsNullOrWhiteSpace(authorsResourceParameters.SearchQuery))
+        {
+            var searchQuery = authorsResourceParameters.SearchQuery.Trim();
+            collection = collection.Where(a => a.MainCategory.Contains(searchQuery)
+                                               || a.FirstName.Contains(searchQuery)
+                                               || a.LastName.Contains(searchQuery));
+        }
+
+        return collection.ToList();
     }
 
     public IEnumerable<Author> GetAuthors(IEnumerable<Guid> authorIds)
