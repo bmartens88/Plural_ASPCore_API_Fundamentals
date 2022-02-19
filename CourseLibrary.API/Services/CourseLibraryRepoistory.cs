@@ -1,5 +1,6 @@
 ﻿using CourseLibrary.API.DbContexts;
 using CourseLibrary.API.Entities;
+using CourseLibrary.API.Helpers;
 using CourseLibrary.API.ResourceParameters;
 
 namespace CourseLibrary.API.Services;
@@ -67,15 +68,9 @@ public class CourseLibraryRepoistory : ICourseLibraryRepository, IDisposable
         return _context.Authors.FirstOrDefault(a => a.Id == authorId);
     }
 
-    public IEnumerable<Author> GetAuthors(AuthorsResourceParameters authorsResourceParameters)
+    public PagedList<Author> GetAuthors(AuthorsResourceParameters authorsResourceParameters)
     {
-        if (authorsResourceParameters is null)
-        {
-            throw new ArgumentNullException(nameof(authorsResourceParameters));
-        }
-        
-        if (string.IsNullOrWhiteSpace(authorsResourceParameters.MainCategory) && string.IsNullOrWhiteSpace(authorsResourceParameters.SearchQuery))
-            return GetAuthors();
+        if (authorsResourceParameters is null) throw new ArgumentNullException(nameof(authorsResourceParameters));
 
         var collection = _context.Authors as IQueryable<Author>;
 
@@ -93,7 +88,9 @@ public class CourseLibraryRepoistory : ICourseLibraryRepository, IDisposable
                                                || a.LastName.Contains(searchQuery));
         }
 
-        return collection.ToList();
+        return PagedList<Author>.Create(collection,
+            authorsResourceParameters.PageNumber,
+            authorsResourceParameters.PageSize);
     }
 
     public IEnumerable<Author> GetAuthors(IEnumerable<Guid> authorIds)
