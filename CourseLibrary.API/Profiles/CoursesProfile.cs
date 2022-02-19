@@ -9,5 +9,6 @@ public class CoursesProfile : Profile
     public CoursesProfile()
     {
         CreateMap<Course, CourseDto>();
+        CreateMap<CourseForCreationDto, Course>();
     }
 }
