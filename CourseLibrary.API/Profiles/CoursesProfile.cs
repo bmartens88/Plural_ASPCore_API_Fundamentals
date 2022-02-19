@@ -10,5 +10,7 @@ public class CoursesProfile : Profile
     {
         CreateMap<Course, CourseDto>();
         CreateMap<CourseForCreationDto, Course>();
+        CreateMap<CourseForUpdateDto, Course>();
+        CreateMap<Course, CourseForUpdateDto>();
     }
 }

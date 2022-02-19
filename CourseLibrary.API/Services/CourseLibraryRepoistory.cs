@@ -46,7 +46,7 @@ public class CourseLibraryRepoistory : ICourseLibraryRepository, IDisposable
 
     public void UpdateCourse(Course course)
     {
-        throw new NotImplementedException();
+        // No implementation
     }
 
     public void DeleteCourse(Course course)

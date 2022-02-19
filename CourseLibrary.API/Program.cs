@@ -3,12 +3,18 @@ using CourseLibrary.API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
 builder.Services.AddControllers(setupActions => { setupActions.ReturnHttpNotAcceptable = true; })
+    .AddNewtonsoftJson(setupAction =>
+    {
+        setupAction.SerializerSettings.ContractResolver =
+            new CamelCasePropertyNamesContractResolver();
+    })
     .AddXmlDataContractSerializerFormatters()
     .ConfigureApiBehaviorOptions(setupAction =>
     {
