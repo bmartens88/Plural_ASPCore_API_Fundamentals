@@ -141,6 +141,23 @@ public class CoursesController : ControllerBase
         return NoContent();
     }
 
+    [HttpDelete("{courseId:guid}")]
+    public ActionResult DeleteCourseForAuthor(Guid authorId, Guid courseId)
+    {
+        if (!_courseLibraryRepository.AuthorExists(authorId))
+            return NotFound();
+
+        var courseForAuthorFromRepo = _courseLibraryRepository.GetCourse(authorId, courseId);
+
+        if (courseForAuthorFromRepo is null)
+            return NotFound();
+
+        _courseLibraryRepository.DeleteCourse(courseForAuthorFromRepo);
+        _courseLibraryRepository.Save();
+
+        return NoContent();
+    }
+
     // In order to invoke the configured InvalidModelStateResponseFactory (Program.cs)
     public override ActionResult ValidationProblem(ModelStateDictionary modelStateDictionary)
     {

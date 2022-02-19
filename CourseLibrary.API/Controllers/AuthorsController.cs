@@ -51,4 +51,25 @@ public class AuthorsController : ControllerBase
         return CreatedAtRoute(nameof(GetAuthor),
             new {authorId = authorToReturn.Id}, authorToReturn);
     }
+
+    [HttpOptions]
+    public IActionResult GetAuthorOptions()
+    {
+        Response.Headers.Add("Allow", "GET,OPTIONS,POST");
+        return Ok();
+    }
+
+    [HttpDelete("{authorId:guid}")]
+    public ActionResult DeleteAuthor(Guid authorId)
+    {
+        var authorFromRepo = _courseLibraryRepository.GetAuthor(authorId);
+
+        if (authorFromRepo is null)
+            return NotFound();
+
+        _courseLibraryRepository.DeleteAuthor(authorFromRepo);
+        _courseLibraryRepository.Save();
+
+        return NoContent();
+    }
 }
