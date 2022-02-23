@@ -63,6 +63,7 @@ builder.Services.AddControllers(setupActions => { setupActions.ReturnHttpNotAcce
     });
 
 builder.Services.AddTransient<IPropertyMappingService, PropertyMappingService>();
+builder.Services.AddTransient<IPropertyCheckerService, PropertyCheckerService>();
 
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
