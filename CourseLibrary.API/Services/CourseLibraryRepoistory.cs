@@ -1,6 +1,7 @@
 ﻿using CourseLibrary.API.DbContexts;
 using CourseLibrary.API.Entities;
 using CourseLibrary.API.Helpers;
+using CourseLibrary.API.Models;
 using CourseLibrary.API.ResourceParameters;
 
 namespace CourseLibrary.API.Services;
@@ -8,10 +9,14 @@ namespace CourseLibrary.API.Services;
 public class CourseLibraryRepoistory : ICourseLibraryRepository, IDisposable
 {
     private readonly CourseLibraryContext _context;
+    private readonly IPropertyMappingService _propertyMappingService;
 
-    public CourseLibraryRepoistory(CourseLibraryContext context)
+    public CourseLibraryRepoistory(CourseLibraryContext context,
+        IPropertyMappingService propertyMappingService)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
+        _propertyMappingService = propertyMappingService
+                                  ?? throw new ArgumentNullException(nameof(propertyMappingService));
     }
 
     public IEnumerable<Course> GetCourses(Guid authorId)
@@ -86,6 +91,15 @@ public class CourseLibraryRepoistory : ICourseLibraryRepository, IDisposable
             collection = collection.Where(a => a.MainCategory.Contains(searchQuery)
                                                || a.FirstName.Contains(searchQuery)
                                                || a.LastName.Contains(searchQuery));
+        }
+
+        if (!string.IsNullOrWhiteSpace(authorsResourceParameters.OrderBy))
+        {
+            // Get property mapping dictionary
+            var authorPropertyMappingDictionary =
+                _propertyMappingService.GetPropertyMapping<AuthorDto, Author>();
+
+            collection = collection.ApplySort(authorsResourceParameters.OrderBy, authorPropertyMappingDictionary);
         }
 
         return PagedList<Author>.Create(collection,

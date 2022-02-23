@@ -62,6 +62,8 @@ builder.Services.AddControllers(setupActions => { setupActions.ReturnHttpNotAcce
         };
     });
 
+builder.Services.AddTransient<IPropertyMappingService, PropertyMappingService>();
+
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
 builder.Services.AddScoped<ICourseLibraryRepository, CourseLibraryRepoistory>();
