@@ -41,28 +41,40 @@ public class AuthorsController : ControllerBase
         if (!_propertyCheckerService.TypeHasProperties<AuthorDto>(authorsResourceParameters.Fields))
             return BadRequest();
         var authorsFromRepo = _courseLibraryRepository.GetAuthors(authorsResourceParameters);
-        var previousPageLink = authorsFromRepo.HasPrevious
-            ? CreateAuthorsResourceUri(authorsResourceParameters, ResourceUriType.PreviousPage)
-            : null;
-        var nextPageLink = authorsFromRepo.HasNext
-            ? CreateAuthorsResourceUri(authorsResourceParameters, ResourceUriType.NextPage)
-            : null;
 
         var paginationMetadata = new
         {
             totalCount = authorsFromRepo.TotalCount,
             pageSize = authorsFromRepo.PageSize,
             currentPage = authorsFromRepo.CurrentPage,
-            totalPages = authorsFromRepo.TotalPages,
-            previousPageLink,
-            nextPageLink
+            totalPages = authorsFromRepo.TotalPages
         };
 
         Response.Headers.Add("X-Pagination",
             JsonSerializer.Serialize(paginationMetadata));
 
-        return Ok(_mapper.Map<IEnumerable<AuthorDto>>(authorsFromRepo)
-            .ShapeData(authorsResourceParameters.Fields));
+        var links = CreateLinksForAuthors(authorsResourceParameters,
+            authorsFromRepo.HasNext,
+            authorsFromRepo.HasPrevious);
+
+        var shapedAuthors = _mapper.Map<IEnumerable<AuthorDto>>(authorsFromRepo)
+            .ShapeData(authorsResourceParameters.Fields);
+
+        var shapedAuthorsWithLinks = shapedAuthors.Select(author =>
+        {
+            var authorAsDictionary = author as IDictionary<string, object>;
+            var authorLinks = CreateLinksForAuthor((Guid) authorAsDictionary["Id"], null);
+            authorAsDictionary.Add("links", authorLinks);
+            return authorAsDictionary;
+        });
+
+        var linkedCollectionResource = new
+        {
+            value = shapedAuthorsWithLinks,
+            links
+        };
+
+        return Ok(linkedCollectionResource);
     }
 
     [HttpGet("{authorId:guid}", Name = "GetAuthor")]
@@ -75,18 +87,32 @@ public class AuthorsController : ControllerBase
         if (authorFromRepo is null)
             return NotFound();
 
-        return Ok(_mapper.Map<AuthorDto>(authorFromRepo).ShapeData(fields));
+        var links = CreateLinksForAuthor(authorId, fields);
+
+        var linkedResourceToReturn =
+            _mapper.Map<AuthorDto>(authorFromRepo).ShapeData(fields)
+                as IDictionary<string, object>;
+        linkedResourceToReturn.Add(nameof(links), links);
+
+        return Ok(linkedResourceToReturn);
     }
 
-    [HttpPost]
+    [HttpPost(Name = "CreateAuthor")]
     public ActionResult<AuthorDto> CreateAuthor([FromBody] AuthorForCreationDto author)
     {
         var authorEntity = _mapper.Map<Author>(author);
         _courseLibraryRepository.AddAuthor(authorEntity);
         _courseLibraryRepository.Save();
         var authorToReturn = _mapper.Map<AuthorDto>(authorEntity);
+
+        var links = CreateLinksForAuthor(authorToReturn.Id, null);
+
+        var linkedResourceToReturn = authorToReturn.ShapeData(null)
+            as IDictionary<string, object>;
+        linkedResourceToReturn.Add(nameof(links), links);
+
         return CreatedAtRoute(nameof(GetAuthor),
-            new {authorId = authorToReturn.Id}, authorToReturn);
+            new {authorId = linkedResourceToReturn["Id"]}, linkedResourceToReturn);
     }
 
     [HttpOptions]
@@ -96,7 +122,7 @@ public class AuthorsController : ControllerBase
         return Ok();
     }
 
-    [HttpDelete("{authorId:guid}")]
+    [HttpDelete("{authorId:guid}", Name = "DeleteAuthor")]
     public ActionResult DeleteAuthor(Guid authorId)
     {
         var authorFromRepo = _courseLibraryRepository.GetAuthor(authorId);
@@ -114,35 +140,87 @@ public class AuthorsController : ControllerBase
         AuthorsResourceParameters authorsResourceParameters,
         ResourceUriType type)
     {
-        return type switch
+        switch (type)
         {
-            ResourceUriType.PreviousPage => Url.Link(nameof(GetAuthors), new
-            {
-                fields = authorsResourceParameters.Fields,
-                orderBy = authorsResourceParameters.OrderBy,
-                pageNumber = authorsResourceParameters.PageNumber - 1,
-                pageSize = authorsResourceParameters.PageSize,
-                mainCategory = authorsResourceParameters.MainCategory,
-                searchQuery = authorsResourceParameters.SearchQuery
-            }),
-            ResourceUriType.NextPage => Url.Link(nameof(GetAuthors), new
-            {
-                fields = authorsResourceParameters.Fields,
-                orderBy = authorsResourceParameters.OrderBy,
-                pageNumber = authorsResourceParameters.PageNumber + 1,
-                pageSize = authorsResourceParameters.PageSize,
-                mainCategory = authorsResourceParameters.MainCategory,
-                searchQuery = authorsResourceParameters.SearchQuery
-            }),
-            _ => Url.Link(nameof(GetAuthors), new
-            {
-                fields = authorsResourceParameters.Fields,
-                orderBy = authorsResourceParameters.OrderBy,
-                pageNumber = authorsResourceParameters.PageNumber,
-                pageSize = authorsResourceParameters.PageSize,
-                mainCategory = authorsResourceParameters.MainCategory,
-                searchQuery = authorsResourceParameters.SearchQuery
-            })
-        };
+            case ResourceUriType.PreviousPage:
+                return Url.Link(nameof(GetAuthors), new
+                {
+                    fields = authorsResourceParameters.Fields,
+                    orderBy = authorsResourceParameters.OrderBy,
+                    pageNumber = authorsResourceParameters.PageNumber - 1,
+                    pageSize = authorsResourceParameters.PageSize,
+                    mainCategory = authorsResourceParameters.MainCategory,
+                    searchQuery = authorsResourceParameters.SearchQuery
+                });
+            case ResourceUriType.NextPage:
+                return Url.Link(nameof(GetAuthors), new
+                {
+                    fields = authorsResourceParameters.Fields,
+                    orderBy = authorsResourceParameters.OrderBy,
+                    pageNumber = authorsResourceParameters.PageNumber + 1,
+                    pageSize = authorsResourceParameters.PageSize,
+                    mainCategory = authorsResourceParameters.MainCategory,
+                    searchQuery = authorsResourceParameters.SearchQuery
+                });
+            case ResourceUriType.Current:
+            default:
+                return Url.Link(nameof(GetAuthors), new
+                {
+                    fields = authorsResourceParameters.Fields,
+                    orderBy = authorsResourceParameters.OrderBy,
+                    pageNumber = authorsResourceParameters.PageNumber,
+                    pageSize = authorsResourceParameters.PageSize,
+                    mainCategory = authorsResourceParameters.MainCategory,
+                    searchQuery = authorsResourceParameters.SearchQuery
+                });
+        }
+
+        ;
+    }
+
+    private IEnumerable<LinkDto> CreateLinksForAuthor(Guid authorId, string fields)
+    {
+        var links = new List<LinkDto>();
+
+        if (string.IsNullOrWhiteSpace(fields))
+            links.Add(
+                new LinkDto(Url.Link(nameof(GetAuthor), new {authorId}), "self", "GET"));
+        else
+            links.Add(
+                new LinkDto(Url.Link(nameof(GetAuthor), new {authorId, fields}), "self", "GET"));
+        links.Add(
+            new LinkDto(Url.Link(nameof(DeleteAuthor), new {authorId}), "delete_author", "DELETE"));
+        links.Add(
+            new LinkDto(Url.Link(nameof(CoursesController.CreateCourseForAuthor), new {authorId}),
+                "create_course_for_author", "POST"));
+        links.Add(
+            new LinkDto(Url.Link(nameof(CoursesController.GetCoursesForAuthor), new {authorId}), "courses", "GET"));
+
+        return links;
+    }
+
+    private IEnumerable<LinkDto> CreateLinksForAuthors(AuthorsResourceParameters authorsResourceParameters,
+        bool hasNext, bool hasPrevious)
+    {
+        var links = new List<LinkDto>();
+
+        // Self
+        links.Add(
+            new LinkDto(CreateAuthorsResourceUri(
+                    authorsResourceParameters, ResourceUriType.Current),
+                "self", "GET"));
+
+        if (hasNext)
+            links.Add(
+                new LinkDto(CreateAuthorsResourceUri(
+                        authorsResourceParameters, ResourceUriType.NextPage),
+                    "nextPage", "GET"));
+        if (hasPrevious)
+            links.Add(
+                new LinkDto(CreateAuthorsResourceUri(
+                        authorsResourceParameters, ResourceUriType.PreviousPage),
+                    "previousPage", "GET"));
+
+        return links;
     }
 }
