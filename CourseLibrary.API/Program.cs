@@ -122,7 +122,8 @@ else
     });
 }
 
-app.UseResponseCaching();
+// Default Microsoft ASP.NET cache store is not usable outside trivial use-cases
+// app.UseResponseCaching();
 
 app.UseHttpCacheHeaders();
 
