@@ -9,10 +9,16 @@ using Newtonsoft.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddResponseCaching();
 
 builder.Services.AddControllers(setupActions =>
     {
         setupActions.ReturnHttpNotAcceptable = true;
+        setupActions.CacheProfiles.Add("240SecondsCacheProfile",
+            new CacheProfile
+            {
+                Duration = 240
+            });
     })
     .AddNewtonsoftJson(setupAction =>
     {
@@ -108,6 +114,8 @@ else
         });
     });
 }
+
+app.UseResponseCaching();
 
 app.UseAuthorization();
 
