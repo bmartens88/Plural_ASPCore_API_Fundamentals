@@ -1,5 +1,6 @@
 using CourseLibrary.API.DbContexts;
 using CourseLibrary.API.Services;
+using Marvin.Cache.Headers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
@@ -9,6 +10,12 @@ using Newtonsoft.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddHttpCacheHeaders(expirationModelOptions =>
+    {
+        expirationModelOptions.MaxAge = 60;
+        expirationModelOptions.CacheLocation = CacheLocation.Private;
+    },
+    validationModelOptions => { validationModelOptions.MustRevalidate = true; });
 builder.Services.AddResponseCaching();
 
 builder.Services.AddControllers(setupActions =>
@@ -76,8 +83,8 @@ builder.Services.Configure<MvcOptions>(config =>
 {
     var newtonsoftJsonOutputFormatter = config.OutputFormatters
         .OfType<NewtonsoftJsonOutputFormatter>()?.FirstOrDefault();
-    
-    if(newtonsoftJsonOutputFormatter is not null)
+
+    if (newtonsoftJsonOutputFormatter is not null)
         newtonsoftJsonOutputFormatter.SupportedMediaTypes.Add("application/vnd.marvin.hateoas+json");
 });
 
@@ -116,6 +123,8 @@ else
 }
 
 app.UseResponseCaching();
+
+app.UseHttpCacheHeaders();
 
 app.UseAuthorization();
 
