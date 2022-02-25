@@ -2,15 +2,17 @@
 
 public static class DateTimeOffsetExtensions
 {
-    public static int GetCurrentAge(this DateTimeOffset dateTimeOffset)
+    public static int GetCurrentAge(this DateTimeOffset dateTimeOffset,
+        DateTimeOffset? dateOfDeath)
     {
-        var currentDate = DateTime.UtcNow;
-        var age = currentDate.Year - dateTimeOffset.Year;
+        var dateToCalculateTo = DateTime.UtcNow;
 
-        if (currentDate < dateTimeOffset.AddYears(age))
-        {
-            age--;
-        }
+        if (dateOfDeath is not null)
+            dateToCalculateTo = dateOfDeath.Value.UtcDateTime;
+
+        var age = dateToCalculateTo.Year - dateTimeOffset.Year;
+
+        if (dateToCalculateTo < dateTimeOffset.AddYears(age)) age--;
 
         return age;
     }
